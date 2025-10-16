@@ -1,19 +1,40 @@
+import { Pause, Play, SkipBack, SkipForward, StepBack, StepForward } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
-import { ArrowLeftToLine } from "lucide-react";
+// Track list
+type Track = {
+  file: string;
+  songTitle: string;
+  albumArt: string;
+};
+
+const trackList: Track[] = [
+  { file: "Better Days - LAKEY INSPIRED.mp3", songTitle: "Better Days", albumArt: "Better Days.jpg" },
+  { file: "autumn_sun.mp3", songTitle: "Autumn Sun", albumArt: "autumn_sun.png" },
+  { file: "Polarity.mp3", songTitle: "Polarity", albumArt: "Polarity.jpg" },
+  { file: "best_part_of_me.mp3", songTitle: "Best Part of Me", albumArt: "BestPart.jpg" },
+  { file: "just_relax.mp3", songTitle: "Just Relax", albumArt: "justRelax_img.jpeg" },
+  { file: "paranormal-is-real-leonell-cassio.mp3", songTitle: "Paranormal is Real", albumArt: "paranormal_real_500.jpg" },
+  { file: "Aidan.mp3", songTitle: "Aidan", albumArt: "Aidan.jpg" },
+];
 
 const AcceleratingMusicPlayer = () => {
-  const [currentTrack, setCurrentTrack] = useState(null);
+  const [currentTrack, setCurrentTrack] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [startSpeed, setStartSpeed] = useState(1.0);
-  const [maxSpeed, setMaxSpeed] = useState(2.0);
+  const [maxSpeed, setMaxSpeed] = useState(5.0);
   const [acceleration, setAcceleration] = useState(0.5);
 
-  const audioRef = useRef(null);
-  const speedIntervalRef = useRef(null);
+  // const audioRef = useRef(null);
+  // const speedIntervalRef = useRef(null);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speedIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const track = trackList[currentTrack];
 
   // Start speed acceleration interval
   useEffect(() => {
@@ -49,29 +70,9 @@ const AcceleratingMusicPlayer = () => {
     };
   }, [isPlaying, startSpeed, maxSpeed, acceleration]);
 
-  // Handle file upload
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const url = URL.createObjectURL(file);
-    setCurrentTrack({
-      name: file.name.replace(/\.[^/.]+$/, ""),
-      fileName: file.name,
-      url: url,
-    });
-
-    if (audioRef.current) {
-      audioRef.current.src = url;
-    }
-  };
-
   // Handle play/pause
   const togglePlay = () => {
-    if (!currentTrack) {
-      alert("Please select an audio file first!");
-      return;
-    }
+    if (!audioRef.current) return;
 
     if (isPlaying) {
       audioRef.current.pause();
@@ -92,6 +93,36 @@ const AcceleratingMusicPlayer = () => {
   const seekForward = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = Math.min(duration, currentTime + 10);
+    }
+  };
+
+  const skipForward = () => {
+    const nextTrack = (currentTrack + 1) % trackList.length;
+    setCurrentTrack(nextTrack);
+    setCurrentTime(0)
+    setPlaybackSpeed(startSpeed)
+
+    if (isPlaying) {
+      setTimeout(() => audioRef.current?.play(), 100);
+    }
+  };
+
+  const skipBackward = () => {
+    if (!audioRef.current) return;
+
+    // If paused and at start, go to previous track
+    if (!isPlaying && audioRef.current.currentTime <= 1) {
+      const previousTrack = currentTrack === 0 ? trackList.length - 1 : currentTrack - 1;
+      setCurrentTrack(previousTrack);
+      setCurrentTime(0);
+      setPlaybackSpeed(startSpeed);
+      return;
+
+    // otherwise, restart the song and pause
+    } else {
+      audioRef.current.currentTime = 0;
+      audioRef.current.pause();
+      setIsPlaying(false);
     }
   };
 
@@ -122,145 +153,102 @@ const AcceleratingMusicPlayer = () => {
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      switch (event.key.toLowerCase()) {
+        case "m":
+          event.preventDefault();
+          if (audioRef.current) {
+            audioRef.current.muted = !audioRef.current.muted;
+          }
+          break;
+        case " ":
+          event.preventDefault();
+          togglePlay();
+          break;
+        case "arrowright":
+          event.preventDefault();
+          if (audioRef.current) {
+            audioRef.current.currentTime = Math.min(
+              audioRef.current.currentTime + 10,
+              audioRef.current.duration
+            );
+          }
+          break;
+        case "arrowleft":
+          event.preventDefault();
+          if (audioRef.current) {
+            audioRef.current.currentTime = Math.max(
+              audioRef.current.currentTime - 10,
+              0
+            );
+          }
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 p-4">
-      <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-10 shadow-2xl border border-white/20 max-w-xl w-full">
-        <h1 className="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
-          🚀 Accelerating Player
-        </h1>
+    <div className="min-h-screen bg-background">
+      <div className="bg-black py-5 h-[80px]">
+        <h1 className="text-white text-3xl font-black text-center uppercase tracking-wider">Acceleration Audio</h1>
+      </div>
 
-        {/* File Input */}
-        <div className="mb-8 text-center">
-          <label
-            htmlFor="audioFile"
-            className="inline-block px-8 py-4 bg-gradient-to-r from-red-500 to-orange-600 rounded-full cursor-pointer hover:translate-y-[-2px] hover:shadow-lg transition-all font-bold uppercase tracking-wider text-white"
-          >
-            Choose Music File
-          </label>
-          <input
-            type="file"
-            id="audioFile"
-            className="hidden"
-            accept="audio/*"
-            onChange={handleFileChange}
-          />
+      <div className="w-full px-[15%]">
+
+        <div className="pt-10 pb-3 text-center text-white">
+          <img id="albumArt" src={`/albumArt/${track.albumArt}`} alt="" className="w-70 h-70 m-auto rounded-2xl"/>
+          <p className="pt-6">
+            <span id="songTitle" className="text-3xl font-black">{track.songTitle}</span>
+          </p>
+          <p className="pt-3">
+            <span id="currentSpeed" className="text-2xl font-black left-[45%] right-[45%]">{playbackSpeed.toFixed(1)}x</span>
+          </p>
         </div>
 
-        {/* Track Info */}
-        <div className="mb-8 min-h-[60px] text-center">
-          <div className="text-xl font-bold text-white mb-1">
-            {currentTrack ? currentTrack.name : "No track selected"}
-          </div>
-          <div className="text-sm text-white/80">
-            {currentTrack
-              ? `File: ${currentTrack.fileName}`
-              : "Select an audio file to begin"}
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden mb-3">
-            <div
-              className="h-full bg-gradient-to-r from-teal-400 to-green-500 transition-all duration-100"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-sm text-white/80">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex justify-center gap-5 mb-8">
-          <button
-            onClick={seekBackward}
-            className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 text-white text-xl hover:scale-110 transition-transform shadow-lg"
-          >
-            <ArrowLeftToLine />
+        <div className="text-center items-center">
+          <button id="skipBackward" className="pr-3" onClick={skipBackward}>
+            <SkipBack className="text-white fill-white w-[40px] h-[40px] active:text-highlight active:fill-highlight"/>
           </button>
-          <button
-            onClick={togglePlay}
-            className={`w-20 h-20 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 text-white text-2xl hover:scale-110 transition-transform shadow-lg ${
-              isPlaying ? "animate-pulse" : ""
-            }`}
-          >
-            {isPlaying ? "⏸" : "▶"}
+          <button id="backButton" className="pr-3" onClick={seekBackward}>
+            <StepBack className="text-white fill-white w-[30px] h-[30px] relative top-[-5px] active:text-highlight active:fill-highlight"/>
           </button>
-          <button
-            onClick={seekForward}
-            className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-indigo-700 text-white text-xl hover:scale-110 transition-transform shadow-lg"
-          >
-            ⏭
+          <button id="playButton" onClick={togglePlay} className={`${
+            isPlaying ? "" : ""}`}>
+            {isPlaying ? (
+              <Pause className="text-white fill-white w-[60px] h-[60px] relative top-[7px] active:text-highlight active:fill-highlight" />
+            ) : (
+              <Play className="text-white fill-white w-[60px] h-[60px] relative top-[7px] active:text-highlight active:fill-highlight" />
+            )}
+          </button>
+          <button id="skipButton" className="pl-3" onClick={seekForward}>
+            <StepForward className="text-white fill-white w-[30px] h-[30px] relative top-[-5px] active:text-highlight active:fill-highlight"/>
+          </button>
+          <button id="skipForward" className="pl-3" onClick={skipForward}>
+            <SkipForward className="text-white fill-white w-[40px] h-[40px] active:text-highlight active:fill-highlight"/>
           </button>
         </div>
 
-        {/* Speed Info */}
-        <div className="bg-white/10 rounded-2xl p-6 mb-6">
-          <div className="text-3xl font-bold text-teal-300 mb-2 text-center">
-            {playbackSpeed.toFixed(2)}x
-          </div>
-          <div className="text-sm text-white/50 text-center leading-relaxed">
-            <p>Speed increases as the song progresses.</p>
-            <p>The longer you listen, the faster it gets!</p>
-          </div>
+        <div className="py-7">
+          <p>
+            <progress value={progress} max={100} className="w-[300px] block m-auto rounded-full h-10"></progress>
+            <div className="flex justify-between w-[300px] m-auto text-sm pt-1">
+            </div>
+          </p>
         </div>
-
-        {/* Settings */}
-        <div className="bg-white/10 rounded-2xl p-6 space-y-4">
-          <SettingRow
-            label="Start Speed:"
-            value={startSpeed}
-            onChange={(e) => setStartSpeed(parseFloat(e.target.value))}
-            min="0.5"
-            max="2.0"
-            step="0.1"
-          />
-          <SettingRow
-            label="Max Speed:"
-            value={maxSpeed}
-            onChange={(e) => setMaxSpeed(parseFloat(e.target.value))}
-            min="1.0"
-            max="4.0"
-            step="0.1"
-          />
-          <SettingRow
-            label="Acceleration:"
-            value={acceleration}
-            onChange={(e) => setAcceleration(parseFloat(e.target.value))}
-            min="0.1"
-            max="2.0"
-            step="0.1"
-          />
-        </div>
-
-        {/* Hidden Audio Element */}
+        
         <audio
           ref={audioRef}
+          src={`/songs/${track.file}`}
+          id="audioPlayer"
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleEnded}
-          preload="auto"
-        />
+          preload="auto"/>
       </div>
-    </div>
-  );
-};
-
-const SettingRow = ({ label, value, onChange, min, max, step }) => {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-sm font-bold text-white">{label}</span>
-      <input
-        type="number"
-        value={value}
-        onChange={onChange}
-        min={min}
-        max={max}
-        step={step}
-        className="w-24 px-3 py-2 rounded-lg bg-white/20 text-white text-center border-none focus:outline-none focus:ring-2 focus:ring-teal-400"
-      />
     </div>
   );
 };
