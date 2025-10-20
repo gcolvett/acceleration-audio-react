@@ -24,12 +24,9 @@ const AcceleratingMusicPlayer = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [startSpeed, setStartSpeed] = useState(1.0);
-  const [maxSpeed, setMaxSpeed] = useState(5.0);
-  const [acceleration, setAcceleration] = useState(0.5);
-
-  // const audioRef = useRef(null);
-  // const speedIntervalRef = useRef(null);
+  const [startSpeed] = useState(1.0);
+  const [maxSpeed] = useState(5.0);
+  const [acceleration] = useState(0.5);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const speedIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -124,14 +121,6 @@ const AcceleratingMusicPlayer = () => {
       audioRef.current.pause();
       setIsPlaying(false);
     }
-  };
-
-  // Format time display
-  const formatTime = (seconds) => {
-    if (isNaN(seconds)) return "0:00";
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   // Audio event handlers
